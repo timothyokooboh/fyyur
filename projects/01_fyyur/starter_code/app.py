@@ -44,7 +44,7 @@ class Venue(db.Model):
     website_link = db.Column(db.String(120), nullable=True)
     seeking_talent = db.Column(db.Boolean, default=False, nullable=True)
     seeking_description = db.Column(db.String(500), nullable=True)
-    shows = db.relationship('Show', backref='venue', lazy='joined')
+    #shows = db.relationship('Show', backref='venue', lazy='joined')
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -62,7 +62,7 @@ class Artist(db.Model):
     website_link = db.Column(db.String(120), nullable=True)
     seeking_talent = db.Column(db.Boolean, default=False, nullable=True)
     seeking_description = db.Column(db.String(500), nullable=True)
-    shows = db.relationship('Show', backref='artist', lazy='joined')
+    #shows = db.relationship('Show', backref='artist', lazy='joined')
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -239,13 +239,33 @@ def create_venue_form():
 def create_venue_submission():
   # TODO: insert form data as a new Venue record in the db, instead
   # TODO: modify data to be the data object returned from db insertion
+ 
+    
+  form = VenueForm(request.form)
+  name = form.name.data
+  city = form.city.data
+  state = form.state.data
+  address = form.address.data
+  phone = form.phone.data
+  genres = form.genres.data
+  image_link = form.image_link.data
+  facebook_link = form.facebook_link.data
+  website_link = form.website_link.data
+  seeking_talent = form.seeking_talent.data
+  seeking_description = form.seeking_description.data
+
+  venue = Venue(name=name, city=city, state=state, address=address, phone=phone, genres=genres, image_link=image_link, facebook_link=facebook_link, website_link=website_link, seeking_talent=seeking_talent, seeking_description=seeking_description)
+
+  db.session.add(venue)
+  db.session.commit()
 
   # on successful db insert, flash success
   flash('Venue ' + request.form['name'] + ' was successfully listed!')
   # TODO: on unsuccessful db insert, flash an error instead.
   # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
   # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
-  return render_template('pages/home.html')
+  # return render_template('pages/home.html')
+  return redirect(url_for('index'))
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
