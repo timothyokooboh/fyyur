@@ -183,7 +183,7 @@ def search_venues():
 def show_venue(venue_id):
   # shows the venue page with the given venue_id
   # TODO: replace with real venue data from the venues table, using venue_id
-
+  """
   data1={
     "id": 1,
     "name": "The Musical Hop",
@@ -261,8 +261,59 @@ def show_venue(venue_id):
     "past_shows_count": 1,
     "upcoming_shows_count": 1,
   }
+  """
   
-  data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
+
+  def get_past_shows(venue_id):
+    shows = Show.query.filter(Show.venue_id == venue_id, Show.start_time < datetime.today()).all()
+    past_shows = []
+    
+    for show in shows:
+      past_shows.append({
+        "artist_id": show.artist_id,
+        "artist_name": show.artist.name,
+        "artist_image_link": show.artist.image_link,
+        "start_time": str(show.start_time)
+      })
+    return past_shows
+
+  def get_upcoming_shows(venue_id):
+    shows = Show.query.filter(Show.venue_id == venue_id, Show.start_time >= datetime.today()).all()
+    upcoming_shows = []
+
+    for show in shows:
+      upcoming_shows.append({
+        "artist_id": show.artist_id,
+        "artist_name": show.artist.name,
+        "artist_image_link": show.artist.image_link,
+        "start_time": str(show.start_time)
+      })
+    return upcoming_shows
+
+
+  venue = Venue.query.get(venue_id)
+  genres = venue.genres[1:-1].split(',')
+
+  data = {}
+  data['id'] = venue.id
+  data['name'] = venue.name
+  data['genres'] = genres
+  data['address'] = venue.address
+  data['city'] = venue.city
+  data['state'] = venue.state
+  data['phone'] = venue.phone
+  data['website'] = venue.website_link  
+  data['facebook_link'] = venue.facebook_link
+  data['seeking_talent'] = venue.seeking_talent
+  data['seeking_description'] = venue.seeking_description
+  data['image_link'] = venue.image_link
+  data['past_shows'] = get_past_shows(venue_id)
+  data['upcoming_shows'] = get_upcoming_shows(venue_id)
+  data['past_shows_count'] = len(data['past_shows'])
+  data['upcoming_shows_count'] = len(data['upcoming_shows'])
+
+  # data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
+
   return render_template('pages/show_venue.html', venue=data)
 
 #  Create Venue
