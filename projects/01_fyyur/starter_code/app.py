@@ -45,7 +45,10 @@ class Venue(db.Model):
     website_link = db.Column(db.String(120), nullable=True)
     seeking_talent = db.Column(db.Boolean, default=False, nullable=True)
     seeking_description = db.Column(db.String(500), nullable=True)
-    #shows = db.relationship('Show', backref='venue', lazy='joined')
+    shows = db.relationship('Show', backref='venue', lazy='joined')
+
+    def __getitem__(self, field):
+      return self.__dict__[field]
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -63,7 +66,10 @@ class Artist(db.Model):
     website_link = db.Column(db.String(120), nullable=True)
     seeking_venue = db.Column(db.Boolean, default=False, nullable=True)
     seeking_description = db.Column(db.String(500), nullable=True)
-    #shows = db.relationship('Show', backref='artist', lazy='joined')
+    shows = db.relationship('Show', backref='artist', lazy='joined')
+
+    def __getitem__(self, field):
+      return self.__dict__[field]
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -106,6 +112,7 @@ def index():
 def venues():
   # TODO: replace with real venues data.
   #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
+  """
   data=[{
     "city": "San Francisco",
     "state": "CA",
@@ -127,6 +134,34 @@ def venues():
       "num_upcoming_shows": 0,
     }]
   }]
+  """
+  data = []
+  venues = Venue.query.all()
+
+  def hasItem(arr, key1, key2, comparison):
+
+    for index, item in enumerate(arr):
+      print(item[key1].lower(), comparison[key1].lower())
+      if(item[key1].lower() == comparison[key1].lower() and item[key2].lower() == comparison[key2].lower()):
+        return index, True
+    return False
+
+  for venue in venues:
+    if (len(data) == 0 or hasItem(data, 'city', 'state', venue) == False):
+      data.append({
+        'city': venue.city,
+        'state': venue.state,
+        'venues': [
+          {
+            'id': venue.id,
+            'name': venue.name
+          }
+        ]
+      })
+    else:
+      index, is_present = hasItem(data, 'city', 'state', venue)
+      data[index]['venues'].append({'id': venue.id, 'name': venue.name})
+    
   return render_template('pages/venues.html', areas=data);
 
 @app.route('/venues/search', methods=['POST'])
@@ -148,6 +183,7 @@ def search_venues():
 def show_venue(venue_id):
   # shows the venue page with the given venue_id
   # TODO: replace with real venue data from the venues table, using venue_id
+
   data1={
     "id": 1,
     "name": "The Musical Hop",
@@ -225,6 +261,7 @@ def show_venue(venue_id):
     "past_shows_count": 1,
     "upcoming_shows_count": 1,
   }
+  
   data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
   return render_template('pages/show_venue.html', venue=data)
 
@@ -489,6 +526,7 @@ def create_artist_submission():
 def shows():
   # displays list of shows at /shows
   # TODO: replace with real venues data.
+  """
   data=[{
     "venue_id": 1,
     "venue_name": "The Musical Hop",
@@ -525,6 +563,19 @@ def shows():
     "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
     "start_time": "2035-04-15T20:00:00.000Z"
   }]
+  """
+  data = []
+  shows = Show.query.all()
+  
+  for show in shows:
+    data.append({
+      'venue_id': show.venue_id,
+      'venue_name': show.venue.name,
+      'artist_id': show.artist_id,
+      'artist_name': show.artist.name,
+      'artist_image_link': show.artist.image_link,
+      'start_time': str(show.start_time)
+    })
   return render_template('pages/shows.html', shows=data)
 
 @app.route('/shows/create')
