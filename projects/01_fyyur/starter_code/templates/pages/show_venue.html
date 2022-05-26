@@ -80,11 +80,16 @@
 
 <script>
 	function deleteVenue(id) {
-		fetch(`/venues/${id}`, { method: 'DELETE' })
-		.then(response => response.json())
-		.then(data => {
-			window.location.href = '/';
-		})
+		if(confirm("Are you sure you want to delete this venue?") == true) {
+			fetch(`/venues/${id}`, { method: 'DELETE' })
+			.then(response => response.json())
+			.then(data => {
+				window.location.href = '/';
+			})
+			.catch(() => {
+				window.location.href = '/';
+			})
+		}
 	}
 </script>
 {% endblock %}
