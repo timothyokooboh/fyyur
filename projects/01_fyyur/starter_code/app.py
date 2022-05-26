@@ -9,11 +9,13 @@ import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import or_, and_, func
 from flask_migrate import Migrate
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
+import sys
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -45,7 +47,7 @@ class Venue(db.Model):
     website_link = db.Column(db.String(120), nullable=True)
     seeking_talent = db.Column(db.Boolean, default=False, nullable=True)
     seeking_description = db.Column(db.String(500), nullable=True)
-    shows = db.relationship('Show', backref='venue', lazy='joined')
+    shows = db.relationship('Show', backref='venue', lazy='joined', cascade="all, delete-orphan")
 
     def __getitem__(self, field):
       return self.__dict__[field]
@@ -66,7 +68,7 @@ class Artist(db.Model):
     website_link = db.Column(db.String(120), nullable=True)
     seeking_venue = db.Column(db.Boolean, default=False, nullable=True)
     seeking_description = db.Column(db.String(500), nullable=True)
-    shows = db.relationship('Show', backref='artist', lazy='joined')
+    shows = db.relationship('Show', backref='artist', lazy='joined', cascade="all, delete-orphan")
 
     def __getitem__(self, field):
       return self.__dict__[field]
@@ -95,6 +97,57 @@ def format_datetime(value, format='medium'):
   return babel.dates.format_datetime(date, format, locale='en')
 
 app.jinja_env.filters['datetime'] = format_datetime
+
+def get_past_shows(model, instance_id):
+  past_shows = []
+
+  if(model == 'venue'):
+    shows = Show.query.filter(Show.venue_id == instance_id, Show.start_time < datetime.today()).all()
+
+    for show in shows:
+      past_shows.append({
+        "artist_id": show.artist_id,
+        "artist_name": show.artist.name,
+        "artist_image_link": show.artist.image_link,
+        "start_time": str(show.start_time)
+      })
+
+  elif(model == 'artist'):
+    shows = Show.query.filter(Show.artist_id == instance_id, Show.start_time < datetime.today()).all()
+
+    for show in shows:
+      past_shows.append({
+        "venue_id": show.venue_id,
+        "venue_name": show.venue.name,
+        "venue_image_link": show.venue.image_link,
+        "start_time": str(show.start_time)
+      })
+  return past_shows
+
+def get_upcoming_shows(model, instance_id):
+  upcoming_shows = []
+
+  if(model == 'venue'):
+    shows = Show.query.filter(Show.venue_id == instance_id, Show.start_time >= datetime.today()).all()
+
+    for show in shows:
+      upcoming_shows.append({
+        "artist_id": show.artist_id,
+        "artist_name": show.artist.name,
+        "artist_image_link": show.artist.image_link,
+        "start_time": str(show.start_time)
+      })
+
+  elif(model == 'artist'):
+    shows = Show.query.filter(Show.artist_id == instance_id, Show.start_time >= datetime.today()).all()
+    for show in shows:
+      upcoming_shows.append({
+        "venue_id": show.venue_id,
+        "venue_name": show.venue.name,
+        "venue_image_link": show.venue.image_link,
+        "start_time": str(show.start_time)
+      })
+  return upcoming_shows
 
 #----------------------------------------------------------------------------#
 # Controllers.
@@ -154,7 +207,8 @@ def venues():
         'venues': [
           {
             'id': venue.id,
-            'name': venue.name
+            'name': venue.name,
+            'num_upcoming_shows': len(get_upcoming_shows('venue', venue.id))
           }
         ]
       })
@@ -169,14 +223,24 @@ def search_venues():
   # TODO: implement search on venues with partial string search. Ensure it is case-insensitive.
   # seach for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
-  response={
-    "count": 1,
-    "data": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }
+ 
+
+  response = { 'count': 0, 'data': []}
+  data = Venue.query.filter(
+    or_(Venue.name.ilike('%' + request.form['search_term'] + '%'), 
+      Venue.city.ilike('%' + request.form['search_term'] + '%'),
+      Venue.state.ilike('%' + request.form['search_term'] + '%'),
+      func.concat(Venue.city, ', ', Venue.state).ilike('%' + request.form['search_term'] + '%')
+    )
+  ).all()
+  response['count'] = len(data)
+  for result in data:
+    response['data'].append({
+      'id': result.id,
+      'name': result.name,
+      'num_upcoming_shows': len(get_upcoming_shows('venue', result.id))
+    })
+
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
 
 @app.route('/venues/<int:venue_id>')
@@ -263,34 +327,6 @@ def show_venue(venue_id):
   }
   """
   
-
-  def get_past_shows(venue_id):
-    shows = Show.query.filter(Show.venue_id == venue_id, Show.start_time < datetime.today()).all()
-    past_shows = []
-
-    for show in shows:
-      past_shows.append({
-        "artist_id": show.artist_id,
-        "artist_name": show.artist.name,
-        "artist_image_link": show.artist.image_link,
-        "start_time": str(show.start_time)
-      })
-    return past_shows
-
-  def get_upcoming_shows(venue_id):
-    shows = Show.query.filter(Show.venue_id == venue_id, Show.start_time >= datetime.today()).all()
-    upcoming_shows = []
-
-    for show in shows:
-      upcoming_shows.append({
-        "artist_id": show.artist_id,
-        "artist_name": show.artist.name,
-        "artist_image_link": show.artist.image_link,
-        "start_time": str(show.start_time)
-      })
-    return upcoming_shows
-
-
   venue = Venue.query.get(venue_id)
   genres = venue.genres[1:-1].split(',')
 
@@ -307,8 +343,8 @@ def show_venue(venue_id):
   data['seeking_talent'] = venue.seeking_talent
   data['seeking_description'] = venue.seeking_description
   data['image_link'] = venue.image_link
-  data['past_shows'] = get_past_shows(venue_id)
-  data['upcoming_shows'] = get_upcoming_shows(venue_id)
+  data['past_shows'] = get_past_shows('venue', venue_id)
+  data['upcoming_shows'] = get_upcoming_shows('venue', venue_id)
   data['past_shows_count'] = len(data['past_shows'])
   data['upcoming_shows_count'] = len(data['upcoming_shows'])
 
@@ -363,8 +399,17 @@ def delete_venue(venue_id):
 
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
-  return None
-
+  try:
+    venue = Venue.query.get(venue_id)
+    db.session.delete(venue)
+    db.session.commit()
+    flash('Venue was successfully deleted.')
+    return { 'message': 'success' }
+  except:
+    print(sys.exc_info())
+    db.session.rollback()
+  finally:
+    db.session.close()
 #  Artists
 #  ----------------------------------------------------------------
 @app.route('/artists')
@@ -388,6 +433,25 @@ def search_artists():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
   # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
   # search for "band" should return "The Wild Sax Band".
+  response = { 'count': 0, 'data': []}
+  data = Artist.query.filter(
+    or_(
+      Artist.name.ilike('%' + request.form['search_term'] + '%'),
+      Artist.city.ilike('%' + request.form['search_term'] + '%'),
+      Artist.state.ilike('%' + request.form['search_term'] + '%'),
+      func.concat(Artist.city, ', ', Artist.state).ilike('%' + request.form['search_term'] + '%')
+    )
+  ).all()
+  response['count'] = len(data)
+
+  for result in data:
+    response['data'].append({
+      'id': result.id,
+      'name': result.name,
+      'num_upcoming_shows': len(get_upcoming_shows('artist', result.id))
+    })
+
+  """ 
   response={
     "count": 1,
     "data": [{
@@ -396,13 +460,14 @@ def search_artists():
       "num_upcoming_shows": 0,
     }]
   }
+  """
   return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
   # shows the artist page with the given artist_id
   # TODO: replace with real artist data from the artist table, using artist_id
-  
+  """
   data1={
     "id": 4,
     "name": "Guns N Petals",
@@ -474,34 +539,8 @@ def show_artist(artist_id):
     "past_shows_count": 0,
     "upcoming_shows_count": 3,
   }
-  
+  """
   # data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
-
-  def get_past_shows(artist_id):
-    shows = Show.query.filter(Show.artist_id == artist_id, Show.start_time < datetime.today()).all()
-    past_shows = []
-
-    for show in shows:
-      past_shows.append({
-        "venue_id": show.venue_id,
-        "venue_name": show.venue.name,
-        "venue_image_link": show.venue.image_link,
-        "start_time": str(show.start_time)
-      })
-    return past_shows
-
-  def get_upcoming_shows(venue_id):
-    shows = Show.query.filter(Show.venue_id == venue_id, Show.start_time >= datetime.today()).all()
-    upcoming_shows = []
-
-    for show in shows:
-      upcoming_shows.append({
-        "venue_id": show.venue_id,
-        "venue_name": show.venue.name,
-        "venue_image_link": show.venue.image_link,
-        "start_time": str(show.start_time)
-      })
-    return upcoming_shows
   artist = Artist.query.get(artist_id)
   genres = artist.genres[1:-1].split(',')
   
@@ -517,8 +556,8 @@ def show_artist(artist_id):
   data['seeking_venue'] = artist.seeking_venue
   data['seeking_description'] = artist.seeking_description
   data['image_link'] = artist.image_link
-  data['past_shows'] = get_past_shows(artist_id)
-  data['upcoming_shows'] = get_upcoming_shows(artist_id)
+  data['past_shows'] = get_past_shows('artist', artist_id)
+  data['upcoming_shows'] = get_upcoming_shows('artist', artist_id)
   data['past_shows_count'] = len(data['past_shows'])
   data['upcoming_shows_count'] = len(data['upcoming_shows'])
   
