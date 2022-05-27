@@ -164,7 +164,6 @@ def search_venues():
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
   venue = Venue.query.get(venue_id)
-  # genres = venue.genres[1:-1].split(',')
 
   data = {}
   data['id'] = venue.id
@@ -207,7 +206,7 @@ def create_venue_submission():
       state = form.state.data
       address = form.address.data
       phone = form.phone.data
-      genres = request.form.getlist('genres')   #form.genres.data
+      genres = request.form.getlist('genres')
       image_link = form.image_link.data
       facebook_link = form.facebook_link.data
       website_link = form.website_link.data
@@ -289,7 +288,6 @@ def search_artists():
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
   artist = Artist.query.get(artist_id)
-  # genres = artist.genres[1:-1].split(',')
   
   data = {}
   data['id'] = artist.id
@@ -324,31 +322,37 @@ def edit_artist(artist_id):
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
   artist = Artist.query.get(artist_id)
-  error = False
+  form = ArtistForm(request.form)
 
-  try:
-    form = ArtistForm(request.form)
-    artist.name = form.name.data
-    artist.city = form.city.data
-    artist.state = form.state.data
-    artist.phone = form.phone.data
-    artist.genres = request.form.getlist('genres') #form.genres.data
-    artist.image_link = form.image_link.data
-    artist.facebook_link = form.facebook_link.data
-    artist.website_link = form.website_link.data
-    artist.seeking_venue = form.seeking_venue.data
-    artist.seeking_description = form.seeking_description.data
-    db.session.commit()
-  except:
-    error = True
-    db.session.rollback()
-  finally:
-    db.session.close()
-    if error:
-      flash('An error occurred. Artist ' + request.form['name'] + ' could not be updated.', 'danger')
-      return redirect(url_for('edit_artist', artist_id=artist_id))
-    flash('Artist ' + request.form['name'] + ' was successfully updated!', 'info')
-    return redirect(url_for('show_artist', artist_id=artist_id))
+  if form.validate():
+    error = False
+
+    try:
+      artist.name = form.name.data
+      artist.city = form.city.data
+      artist.state = form.state.data
+      artist.phone = form.phone.data
+      artist.genres = request.form.getlist('genres')
+      artist.image_link = form.image_link.data
+      artist.facebook_link = form.facebook_link.data
+      artist.website_link = form.website_link.data
+      artist.seeking_venue = form.seeking_venue.data
+      artist.seeking_description = form.seeking_description.data
+      db.session.commit()
+    except:
+      error = True
+      db.session.rollback()
+    finally:
+      db.session.close()
+      if error:
+        flash('An error occurred. Artist ' + request.form['name'] + ' could not be updated.', 'danger')
+        return redirect(url_for('edit_artist', artist_id=artist_id))
+      flash('Artist ' + request.form['name'] + ' was successfully updated!', 'info')
+      return redirect(url_for('show_artist', artist_id=artist_id))
+  else:
+    for field, message in form.errors.items():
+      flash(field + ' - ' + str(message), 'danger')
+    return redirect(url_for('edit_artist', artist_id=artist_id))
 
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
@@ -362,33 +366,39 @@ def edit_venue(venue_id):
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
 def edit_venue_submission(venue_id):
   venue = Venue.query.get(venue_id)
-  error = False
+  form = VenueForm(request.form)
 
-  try:
-    form = VenueForm(request.form)
-    venue.name = form.name.data
-    venue.city = form.city.data
-    venue.state = form.state.data
-    venue.address = form.address.data
-    venue.phone = form.phone.data
-    venue.genres = request.form.getlist('genres') #form.genres.data
-    venue.image_link = form.image_link.data
-    venue.facebook_link = form.facebook_link.data
-    venue.website_link = form.website_link.data
-    venue.seeking_talent = form.seeking_talent.data
-    venue.seeking_description = form.seeking_description.data
+  if form.validate():
+    error = False
 
-    db.session.commit()
-  except:
-    error = True
-    db.session.rollback()
-  finally:
-    db.session.close()
-    if error:
-      flash('An error occurred. Venue ' + request.form['name'] + ' could not be updated.', 'danger')
-      return redirect(url_for('edit_venue', venue_id=venue_id))
-    flash('Venue ' + request.form['name'] + ' was successfully updated!', 'info')
-    return redirect(url_for('show_venue', venue_id=venue_id))
+    try:
+      venue.name = form.name.data
+      venue.city = form.city.data
+      venue.state = form.state.data
+      venue.address = form.address.data
+      venue.phone = form.phone.data
+      venue.genres = request.form.getlist('genres')
+      venue.image_link = form.image_link.data
+      venue.facebook_link = form.facebook_link.data
+      venue.website_link = form.website_link.data
+      venue.seeking_talent = form.seeking_talent.data
+      venue.seeking_description = form.seeking_description.data
+
+      db.session.commit()
+    except:
+      error = True
+      db.session.rollback()
+    finally:
+      db.session.close()
+      if error:
+        flash('An error occurred. Venue ' + request.form['name'] + ' could not be updated.', 'danger')
+        return redirect(url_for('edit_venue', venue_id=venue_id))
+      flash('Venue ' + request.form['name'] + ' was successfully updated!', 'info')
+      return redirect(url_for('show_venue', venue_id=venue_id))
+  else:
+    for field, message in form.errors.items():
+      flash(field + ' - ' + str(message), 'danger')
+    return redirect(url_for('edit_venue', venue_id=venue_id))
 
 #  Create Artist
 #  ----------------------------------------------------------------
@@ -401,34 +411,40 @@ def create_artist_form():
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
   form = ArtistForm(request.form)
-  error = False
 
-  try:
-    name = form.name.data
-    city = form.city.data
-    state = form.state.data
-    phone = form.phone.data
-    genres = request.form.getlist('genres') # form.genres.data
-    image_link = form.image_link.data
-    facebook_link = form.facebook_link.data
-    website_link = form.website_link.data
-    seeking_venue = form.seeking_venue.data
-    seeking_description = form.seeking_description.data
+  if form.validate():
+    error = False
 
-    artist = Artist(name=name, city=city, state=state, phone=phone, genres=genres, image_link=image_link, facebook_link=facebook_link, website_link=website_link, seeking_venue=seeking_venue, seeking_description=seeking_description)
+    try:
+      name = form.name.data
+      city = form.city.data
+      state = form.state.data
+      phone = form.phone.data
+      genres = request.form.getlist('genres')
+      image_link = form.image_link.data
+      facebook_link = form.facebook_link.data
+      website_link = form.website_link.data
+      seeking_venue = form.seeking_venue.data
+      seeking_description = form.seeking_description.data
 
-    db.session.add(artist)
-    db.session.commit()
-  except:
-    error = True
-    db.session.rollback()
-  finally:
-    if(error):
-      flash('An error occurred. Artist ' + request.form['name']  + ' could not be listed.', 'danger')
-      return redirect(url_for('create_artist_form'))
+      artist = Artist(name=name, city=city, state=state, phone=phone, genres=genres, image_link=image_link, facebook_link=facebook_link, website_link=website_link, seeking_venue=seeking_venue, seeking_description=seeking_description)
 
-    flash('Artist ' + request.form['name'] + ' was successfully listed!', 'info')
-    return redirect(url_for('index'))
+      db.session.add(artist)
+      db.session.commit()
+    except:
+      error = True
+      db.session.rollback()
+    finally:
+      if(error):
+        flash('An error occurred. Artist ' + request.form['name']  + ' could not be listed.', 'danger')
+        return redirect(url_for('create_artist_form'))
+
+      flash('Artist ' + request.form['name'] + ' was successfully listed!', 'info')
+      return redirect(url_for('index'))
+  else:
+    for field, message in form.errors.items():
+      flash(field + ' - ' + str(message), 'danger')
+    return redirect(url_for('create_venue_form'))
 
 #  Shows
 #  ----------------------------------------------------------------

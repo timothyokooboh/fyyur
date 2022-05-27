@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask_wtf import Form
 from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField, BooleanField
-from wtforms.validators import DataRequired, URL, Regexp
+from wtforms.validators import DataRequired, URL, Regexp, Optional
 
 class ShowForm(Form):
     artist_id = StringField(
@@ -84,10 +84,10 @@ class VenueForm(Form):
     )
     phone = StringField(
         'phone', 
-        validators=[DataRequired(), Regexp('^(\+)|[^\n\d]', message='invalid phone number')]
+        validators=[DataRequired(), Regexp('[0-9+-]*$', message='Invalid phone number')]
     )
     image_link = StringField(
-        'image_link'
+        'image_link', validators=[DataRequired(), URL()]
     )
     genres = SelectMultipleField(
         'genres', validators=[DataRequired()],
@@ -114,10 +114,10 @@ class VenueForm(Form):
         ]
     )
     facebook_link = StringField(
-        'facebook_link', validators=[URL()]
+        'facebook_link', validators=[Optional(), URL()]
     )
     website_link = StringField(
-        'website_link', validators=[URL()]
+        'website_link', validators=[Optional(), URL()]
     )
 
     seeking_talent = BooleanField( 'seeking_talent')
@@ -192,10 +192,12 @@ class ArtistForm(Form):
         ]
     )
     phone = StringField(
-        'phone'
+        'phone',
+        validators=[DataRequired(), Regexp('[0-9+-]*$', message='Invalid phone number')]
     )
     image_link = StringField(
-        'image_link'
+        'image_link',
+        validators=[DataRequired(), URL()]
     )
     genres = SelectMultipleField(
         'genres', validators=[DataRequired()],
@@ -222,11 +224,12 @@ class ArtistForm(Form):
         ]
      )
     facebook_link = StringField(
-        'facebook_link', validators=[URL()]
+        'facebook_link', validators=[Optional(), URL()]
      )
 
     website_link = StringField(
-        'website_link'
+        'website_link',
+        validators=[Optional(), URL()]
      )
 
     seeking_venue = BooleanField( 'seeking_venue' )
